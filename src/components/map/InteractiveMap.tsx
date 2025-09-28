@@ -5,6 +5,7 @@ import {
   Marker,
   LngLatBounds,
   ControlPosition,
+  Style,
 } from "@maptiler/sdk";
 import { GeocodingControl } from "@maptiler/geocoding-control/maptilersdk";
 import { geocoding } from "@maptiler/client";
@@ -13,8 +14,7 @@ import "@maptiler/geocoding-control/style.css"; // Don't forget the control's CS
 import { cn } from "@/lib/utils";
 
 // 🚨 SECURITY: Use an environment variable for the API key
-config.apiKey =
-  process.env.NEXT_PUBLIC_MAPTILER_API_KEY || "sZlUOIPXNT9DQqEKzkiW";
+config.apiKey = import.meta.env.VITE_MAPTILER_API_KEY || "sZlUOIPXNT9DQqEKzkiW";
 
 interface Location {
   lat: number;
@@ -54,6 +54,7 @@ export const InteractiveMap = ({
   const map = useRef<Map | null>(null);
   const markers = useRef<Marker[]>([]);
   const geocodingControlRef = useRef<GeocodingControl | null>(null);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
 
   // Consolidated state for display coordinates
   const [mapCenter, setMapCenter] = useState({
@@ -92,12 +93,16 @@ export const InteractiveMap = ({
     const initialCenter = [mapCenter.lng, mapCenter.lat] as [number, number];
     map.current = new Map({
       container: mapContainer.current,
-      style: "streets-v2",
+      style: Style.STREETS,
       center: initialCenter,
       zoom: mapCenter.zoom,
     });
 
     const mapInstance = map.current;
+
+    mapInstance.on('load', () => {
+      setIsMapLoaded(true);
+    });
 
     // 2. Add Geocoding Control (Search Bar)
     geocodingControlRef.current = new GeocodingControl({
@@ -157,13 +162,11 @@ export const InteractiveMap = ({
     handleMapClick,
     onLocationSelect,
   ]);
-  // Note: We keep initial center/zoom in deps for potential external changes,
-  // but primarily rely on mapInstance.on('move') to update `mapCenter` state.
 
   // Effect for Marker Management and Map Fitting
   useEffect(() => {
     const mapInstance = map.current;
-    if (!mapInstance) return;
+    if (!mapInstance || !isMapLoaded) return;
 
     // Clear existing markers
     markers.current.forEach((marker) => marker.remove());
@@ -190,13 +193,12 @@ export const InteractiveMap = ({
         duration: 1000,
       });
     }
-  }, [locations]);
+  }, [locations, isMapLoaded]);
 
   // Effect for Route Drawing (Straight Line Route)
-  // For a professional touch, consider using a MapTiler Directions API call here.
   useEffect(() => {
     const mapInstance = map.current;
-    if (!mapInstance) return;
+    if (!mapInstance || !isMapLoaded) return;
 
     const sourceId = "route";
     const layerId = "route-layer";
@@ -241,7 +243,7 @@ export const InteractiveMap = ({
         },
       });
     }
-  }, [locations, showRoute]);
+  }, [locations, showRoute, isMapLoaded]);
 
   return (
     <div

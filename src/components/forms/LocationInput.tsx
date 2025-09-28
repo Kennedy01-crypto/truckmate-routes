@@ -1,14 +1,28 @@
 import { useState, useRef, useEffect } from "react";
-import { MapPin, Search, X, Check } from "lucide-react";
+import { MapPin, Search, X, Check, Loader } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { geocoding, type GeocodingResult } from "@maptiler/client";
+import { config } from "@maptiler/sdk";
 
-interface LocationSuggestion {
-  id: string;
-  address: string;
-  lat: number;
-  lng: number;
-  type: string;
+// Configure the API key
+config.apiKey = import.meta.env.VITE_MAPTILER_API_KEY || "sZlUOIPXNT9DQqEKzkiW";
+
+// Custom hook for debouncing
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
 }
 
 interface LocationInputProps {
@@ -30,49 +44,42 @@ export const LocationInput = ({
   variant = 'current',
   className
 }: LocationInputProps) => {
-  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<GeocodingResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isValid, setIsValid] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const debouncedSearchTerm = useDebounce(value, 500);
 
-  // Mock suggestions based on input
   useEffect(() => {
-    if (value.length > 2) {
-      const mockSuggestions: LocationSuggestion[] = [
-        {
-          id: '1',
-          address: `${value} - Interstate 95, Mile Marker 45`,
-          lat: 40.7128,
-          lng: -74.0060,
-          type: 'highway'
-        },
-        {
-          id: '2', 
-          address: `${value} - Distribution Center`,
-          lat: 40.7580,
-          lng: -73.9855,
-          type: 'facility'
-        },
-        {
-          id: '3',
-          address: `${value} - Truck Stop & Fuel`,
-          lat: 40.6892,
-          lng: -74.0445,
-          type: 'fuel'
+    if (debouncedSearchTerm.length > 2) {
+      const fetchSuggestions = async () => {
+        setIsLoading(true);
+        try {
+          const results = await geocoding.forward(debouncedSearchTerm, {
+            country: ["US"],
+            types: ["address", "street", "poi"],
+          });
+          setSuggestions(results.features);
+          setShowSuggestions(true);
+        } catch (error) {
+          console.error("Error fetching geocoding suggestions:", error);
+          setSuggestions([]);
+        } finally {
+          setIsLoading(false);
         }
-      ];
-      setSuggestions(mockSuggestions);
-      setShowSuggestions(true);
+      };
+      fetchSuggestions();
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
     }
-    
-    setIsValid(value.length > 10); // Simple validation
-  }, [value]);
+    setIsValid(value.length > 10); // Simple validation, can be improved
+  }, [debouncedSearchTerm]);
 
-  const handleSuggestionClick = (suggestion: LocationSuggestion) => {
-    onChange(suggestion.address, { lat: suggestion.lat, lng: suggestion.lng });
+  const handleSuggestionClick = (suggestion: GeocodingResult) => {
+    const [lng, lat] = suggestion.center;
+    onChange(suggestion.place_name, { lat, lng });
     setShowSuggestions(false);
     setIsValid(true);
   };
@@ -132,24 +139,25 @@ export const LocationInput = ({
         />
         
         <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-          {isValid && (
-            <Check className="h-4 w-4 text-success" />
-          )}
-          {value && (
-            <button
-              onClick={clearInput}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-          {!value && (
-            <Search className="h-4 w-4 text-muted-foreground" />
+          {isLoading ? (
+            <Loader className="h-4 w-4 animate-spin" />
+          ) : (
+            <>
+              {isValid && <Check className="h-4 w-4 text-success" />}
+              {value && (
+                <button
+                  onClick={clearInput}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              {!value && <Search className="h-4 w-4 text-muted-foreground" />}
+            </>
           )}
         </div>
       </div>
 
-      {/* Suggestions Dropdown */}
       {showSuggestions && suggestions.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto animate-slide-up">
           {suggestions.map((suggestion) => (
@@ -161,9 +169,9 @@ export const LocationInput = ({
               <div className="flex items-start gap-3">
                 <MapPin className={cn("h-4 w-4 mt-1 flex-shrink-0", getIconColor())} />
                 <div>
-                  <p className="text-sm font-medium">{suggestion.address}</p>
+                  <p className="text-sm font-medium">{suggestion.place_name}</p>
                   <p className="text-xs text-muted-foreground capitalize">
-                    {suggestion.type} • {suggestion.lat.toFixed(4)}, {suggestion.lng.toFixed(4)}
+                    {suggestion.place_type.join(', ')}
                   </p>
                 </div>
               </div>
