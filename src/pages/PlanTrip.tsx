@@ -8,18 +8,17 @@ import { Input } from "@/components/ui/input";
 import { MapPin, Navigation, Clock, Route, Truck, Key } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-
 interface Location {
   lat: number;
   lng: number;
   address: string;
   type: 'current' | 'pickup' | 'dropoff';
 }
-
 export default function PlanTrip() {
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const navigate = useNavigate();
-  
   const [currentLocation, setCurrentLocation] = useState("");
   const [pickupLocation, setPickupLocation] = useState("");
   const [dropoffLocation, setDropoffLocation] = useState("");
@@ -27,12 +26,10 @@ export default function PlanTrip() {
   const [mapLocations, setMapLocations] = useState<Location[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
   const [mapboxToken, setMapboxToken] = useState("");
-
-  const handleLocationChange = (
-    type: 'current' | 'pickup' | 'dropoff',
-    address: string,
-    coordinates?: { lat: number; lng: number }
-  ) => {
+  const handleLocationChange = (type: 'current' | 'pickup' | 'dropoff', address: string, coordinates?: {
+    lat: number;
+    lng: number;
+  }) => {
     switch (type) {
       case 'current':
         setCurrentLocation(address);
@@ -44,22 +41,27 @@ export default function PlanTrip() {
         setDropoffLocation(address);
         break;
     }
-
     if (coordinates) {
       setMapLocations(prev => {
         const filtered = prev.filter(loc => loc.type !== type);
-        return [...filtered, { ...coordinates, address, type }];
+        return [...filtered, {
+          ...coordinates,
+          address,
+          type
+        }];
       });
     }
   };
-
-  const handleMapLocationSelect = (location: { lat: number; lng: number; address: string }) => {
+  const handleMapLocationSelect = (location: {
+    lat: number;
+    lng: number;
+    address: string;
+  }) => {
     toast({
       title: "Location Selected",
       description: `Click on a location input field, then select this point: ${location.address}`
     });
   };
-
   const handlePlanTrip = async () => {
     if (!currentLocation || !pickupLocation || !dropoffLocation) {
       toast({
@@ -69,34 +71,29 @@ export default function PlanTrip() {
       });
       return;
     }
-
     setIsCalculating(true);
-    
+
     // Simulate API call for route calculation
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
       toast({
         title: "Trip Planned Successfully",
         description: "ELD logs and route have been calculated. Redirecting to review..."
       });
-      
+
       // Store trip data (in real app, this would be in state management/backend)
       const tripData = {
         currentLocation,
-        pickupLocation, 
+        pickupLocation,
         dropoffLocation,
         cycleHours,
         mapLocations,
         plannedAt: new Date().toISOString()
       };
-      
       localStorage.setItem('currentTrip', JSON.stringify(tripData));
-      
       setTimeout(() => {
         navigate('/logs');
       }, 1000);
-      
     } catch (error) {
       toast({
         title: "Planning Error",
@@ -107,18 +104,10 @@ export default function PlanTrip() {
       setIsCalculating(false);
     }
   };
-
-  return (
-    <div className="h-full flex flex-col lg:flex-row overflow-hidden">
+  return <div className="h-full flex flex-col lg:flex-row overflow-hidden">
       {/* Map Section */}
       <div className="lg:w-2/3 h-64 lg:h-full">
-        <InteractiveMap
-          locations={mapLocations}
-          onLocationSelect={handleMapLocationSelect}
-          showRoute={mapLocations.length >= 2}
-          className="h-full"
-          mapboxToken={mapboxToken}
-        />
+        <InteractiveMap locations={mapLocations} onLocationSelect={handleMapLocationSelect} showRoute={mapLocations.length >= 2} className="h-full" mapboxToken={mapboxToken} />
       </div>
 
       {/* Input Panel */}
@@ -133,28 +122,7 @@ export default function PlanTrip() {
           </div>
 
           {/* Mapbox Token Input */}
-          <Card className="eld-card p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Key className="h-5 w-5 text-primary" />
-              <h2 className="font-semibold">Map Configuration</h2>
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium">Mapbox Access Token</label>
-              <Input
-                type="password"
-                value={mapboxToken}
-                onChange={(e) => setMapboxToken(e.target.value)}
-                placeholder="pk.eyJ1..."
-                className="eld-input"
-              />
-              <p className="text-xs text-muted-foreground">
-                Get your free token at{' '}
-                <a href="https://mapbox.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  mapbox.com
-                </a>
-              </p>
-            </div>
-          </Card>
+          
 
           {/* Location Inputs */}
           <Card className="eld-card p-4 space-y-4">
@@ -163,35 +131,11 @@ export default function PlanTrip() {
               <h2 className="font-semibold">Trip Locations</h2>
             </div>
 
-            <LocationInput
-              label="Current Location"
-              value={currentLocation}
-              onChange={(value, coords) => handleLocationChange('current', value, coords)}
-              placeholder="Enter your current location..."
-              variant="current"
-              icon={<Navigation className="h-4 w-4" />}
-              mapboxToken={mapboxToken}
-            />
+            <LocationInput label="Current Location" value={currentLocation} onChange={(value, coords) => handleLocationChange('current', value, coords)} placeholder="Enter your current location..." variant="current" icon={<Navigation className="h-4 w-4" />} mapboxToken={mapboxToken} />
 
-            <LocationInput
-              label="Pickup Location" 
-              value={pickupLocation}
-              onChange={(value, coords) => handleLocationChange('pickup', value, coords)}
-              placeholder="Enter pickup location..."
-              variant="pickup"
-              icon={<Truck className="h-4 w-4" />}
-              mapboxToken={mapboxToken}
-            />
+            <LocationInput label="Pickup Location" value={pickupLocation} onChange={(value, coords) => handleLocationChange('pickup', value, coords)} placeholder="Enter pickup location..." variant="pickup" icon={<Truck className="h-4 w-4" />} mapboxToken={mapboxToken} />
 
-            <LocationInput
-              label="Drop-off Location"
-              value={dropoffLocation}
-              onChange={(value, coords) => handleLocationChange('dropoff', value, coords)}
-              placeholder="Enter drop-off location..."
-              variant="dropoff"
-              icon={<Route className="h-4 w-4" />}
-              mapboxToken={mapboxToken}
-            />
+            <LocationInput label="Drop-off Location" value={dropoffLocation} onChange={(value, coords) => handleLocationChange('dropoff', value, coords)} placeholder="Enter drop-off location..." variant="dropoff" icon={<Route className="h-4 w-4" />} mapboxToken={mapboxToken} />
           </Card>
 
           {/* Cycle Hours */}
@@ -201,60 +145,42 @@ export default function PlanTrip() {
               <h2 className="font-semibold">Hours of Service</h2>
             </div>
             
-            <CycleHoursSlider
-              value={cycleHours}
-              onChange={setCycleHours}
-            />
+            <CycleHoursSlider value={cycleHours} onChange={setCycleHours} />
           </Card>
 
           {/* Action Buttons */}
           <div className="space-y-3">
-            <Button 
-              onClick={handlePlanTrip}
-              disabled={isCalculating}
-              className="w-full eld-button-primary py-6 text-lg font-semibold"
-            >
-              {isCalculating ? (
-                <>
+            <Button onClick={handlePlanTrip} disabled={isCalculating} className="w-full eld-button-primary py-6 text-lg font-semibold">
+              {isCalculating ? <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-2"></div>
                   Calculating HOS Compliance...
-                </>
-              ) : (
-                <>
+                </> : <>
                   <Route className="h-5 w-5 mr-2" />
                   Plan Trip & Generate Logs
-                </>
-              )}
+                </>}
             </Button>
 
-            <Button 
-              variant="outline"
-              className="w-full eld-button-secondary"
-              onClick={() => {
-                setCurrentLocation("");
-                setPickupLocation("");
-                setDropoffLocation("");
-                setCycleHours(0);
-                setMapLocations([]);
-              }}
-            >
+            <Button variant="outline" className="w-full eld-button-secondary" onClick={() => {
+            setCurrentLocation("");
+            setPickupLocation("");
+            setDropoffLocation("");
+            setCycleHours(0);
+            setMapLocations([]);
+          }}>
               Clear All Fields
             </Button>
           </div>
 
           {/* Trip Summary */}
-          {mapLocations.length > 0 && (
-            <Card className="eld-card p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+          {mapLocations.length > 0 && <Card className="eld-card p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
               <h3 className="font-semibold mb-2 text-primary">Trip Summary</h3>
               <div className="space-y-2 text-sm">
                 <p><span className="text-muted-foreground">Locations:</span> {mapLocations.length} points</p>
                 <p><span className="text-muted-foreground">Cycle Hours:</span> {cycleHours}/70 hours</p>
                 <p><span className="text-muted-foreground">Remaining:</span> {(70 - cycleHours).toFixed(1)} hours</p>
               </div>
-            </Card>
-          )}
+            </Card>}
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }
