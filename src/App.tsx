@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import PlanTrip from "./pages/PlanTrip";
 import ReviewLogs from "./pages/ReviewLogs";
 import NotFound from "./pages/NotFound";
+import { MapProvider } from "@/context/MapContext";
 
 const queryClient = new QueryClient();
 
@@ -16,14 +17,16 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<Navigate to="/plan" replace />} />
-            <Route path="plan" element={<PlanTrip />} />
-            <Route path="logs" element={<ReviewLogs />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <MapProvider>
+          <Routes>
+            <Route path="/" element={<AppLayout />}>
+              <Route index element={<Navigate to="/plan" replace />} />
+              <Route path="plan" element={<PlanTrip />} />
+              <Route path="logs" element={<ReviewLogs />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </MapProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
