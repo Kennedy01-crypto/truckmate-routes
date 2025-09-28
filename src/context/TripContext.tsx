@@ -1,4 +1,6 @@
-import { createContext, useState, useEffect, useContext, ReactNode } from "react";
+import { createContext, useState, useEffect, useContext, ReactNode, useRef } from "react";
+import { Map, Marker, LngLatBounds } from "@maptiler/sdk";
+import { geocoding } from "@maptiler/client";
 
 interface TripData {
   currentLocation: string;

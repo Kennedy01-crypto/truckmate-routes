@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useMap } from "@/context/MapContext";
 import { InteractiveMap } from "@/components/map/InteractiveMap";
 import { LocationInput } from "@/components/forms/LocationInput";
 import { CycleHoursSlider } from "@/components/forms/CycleHoursSlider";
@@ -24,6 +25,7 @@ export default function PlanTrip() {
   const [dropoffLocation, setDropoffLocation] = useState("");
   const [cycleHours, setCycleHours] = useState(35.5);
   const [mapLocations, setMapLocations] = useState<Location[]>([]);
+  const { addMarker, drawRoute } = useMap();
   const [isCalculating, setIsCalculating] = useState(false);
 
   const handleLocationChange = (
@@ -43,10 +45,16 @@ export default function PlanTrip() {
         break;
     }
 
-    if (coordinates) {
-      setMapLocations(prev => {
-        const filtered = prev.filter(loc => loc.type !== type);
-        return [...filtered, { ...coordinates, address, type }];
+      if (coordinates) {
+        const newLocation = { ...coordinates, address, type };
+        addMarker(newLocation);      
+        setMapLocations(prev => {
+          const filtered = prev.filter(loc => loc.type !== type);
+          const updatedLocations = [...filtered, newLocation];
+          if (updatedLocations.length >= 2) {
+            drawRoute(updatedLocations);
+          }
+          return updatedLocations;
       });
     }
   };
@@ -111,9 +119,7 @@ export default function PlanTrip() {
       {/* Map Section */}
       <div className="lg:w-2/3 h-64 lg:h-full">
         <InteractiveMap
-          locations={mapLocations}
           onLocationSelect={handleMapLocationSelect}
-          showRoute={mapLocations.length >= 2}
           className="h-full"
         />
       </div>
