@@ -59,7 +59,7 @@ export const DesktopNavigation = ({ isOpen, onToggle }: DesktopNavigationProps) 
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4">
+        <nav className="flex-1 p-2">
           <ul className="space-y-2">
             {navItems.map((item) => {
               const isActive = location.pathname === item.href;
