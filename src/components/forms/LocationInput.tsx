@@ -19,6 +19,7 @@ interface LocationInputProps {
   icon?: React.ReactNode;
   variant?: 'current' | 'pickup' | 'dropoff';
   className?: string;
+  mapboxToken?: string;
 }
 
 export const LocationInput = ({
@@ -28,16 +29,44 @@ export const LocationInput = ({
   placeholder,
   icon,
   variant = 'current',
-  className
+  className,
+  mapboxToken
 }: LocationInputProps) => {
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isValid, setIsValid] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Mock suggestions based on input
+  // Real geocoding with Mapbox API
   useEffect(() => {
-    if (value.length > 2) {
+    if (value.length > 2 && mapboxToken) {
+      const timeoutId = setTimeout(async () => {
+        try {
+          const response = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(value)}.json?access_token=${mapboxToken}&types=poi,address,place&limit=5`
+          );
+          const data = await response.json();
+          
+          const newSuggestions: LocationSuggestion[] = data.features?.map((feature: any, index: number) => ({
+            id: `${index}`,
+            address: feature.place_name,
+            lat: feature.center[1],
+            lng: feature.center[0],
+            type: feature.properties?.category || feature.place_type?.[0] || 'location'
+          })) || [];
+          
+          setSuggestions(newSuggestions);
+          setShowSuggestions(newSuggestions.length > 0);
+        } catch (error) {
+          console.error('Geocoding error:', error);
+          setSuggestions([]);
+          setShowSuggestions(false);
+        }
+      }, 300); // Debounce API calls
+
+      return () => clearTimeout(timeoutId);
+    } else if (value.length > 2) {
+      // Fallback mock suggestions when no token
       const mockSuggestions: LocationSuggestion[] = [
         {
           id: '1',
@@ -68,8 +97,8 @@ export const LocationInput = ({
       setShowSuggestions(false);
     }
     
-    setIsValid(value.length > 10); // Simple validation
-  }, [value]);
+    setIsValid(value.length > 5); // Updated validation
+  }, [value, mapboxToken]);
 
   const handleSuggestionClick = (suggestion: LocationSuggestion) => {
     onChange(suggestion.address, { lat: suggestion.lat, lng: suggestion.lng });

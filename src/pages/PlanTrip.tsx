@@ -4,7 +4,8 @@ import { LocationInput } from "@/components/forms/LocationInput";
 import { CycleHoursSlider } from "@/components/forms/CycleHoursSlider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MapPin, Navigation, Clock, Route, Truck } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { MapPin, Navigation, Clock, Route, Truck, Key } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -25,6 +26,7 @@ export default function PlanTrip() {
   const [cycleHours, setCycleHours] = useState(35.5);
   const [mapLocations, setMapLocations] = useState<Location[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [mapboxToken, setMapboxToken] = useState("");
 
   const handleLocationChange = (
     type: 'current' | 'pickup' | 'dropoff',
@@ -115,6 +117,7 @@ export default function PlanTrip() {
           onLocationSelect={handleMapLocationSelect}
           showRoute={mapLocations.length >= 2}
           className="h-full"
+          mapboxToken={mapboxToken}
         />
       </div>
 
@@ -128,6 +131,30 @@ export default function PlanTrip() {
               Enter locations and cycle hours to generate compliant ELD logs
             </p>
           </div>
+
+          {/* Mapbox Token Input */}
+          <Card className="eld-card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Key className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold">Map Configuration</h2>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Mapbox Access Token</label>
+              <Input
+                type="password"
+                value={mapboxToken}
+                onChange={(e) => setMapboxToken(e.target.value)}
+                placeholder="pk.eyJ1..."
+                className="eld-input"
+              />
+              <p className="text-xs text-muted-foreground">
+                Get your free token at{' '}
+                <a href="https://mapbox.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  mapbox.com
+                </a>
+              </p>
+            </div>
+          </Card>
 
           {/* Location Inputs */}
           <Card className="eld-card p-4 space-y-4">
@@ -143,6 +170,7 @@ export default function PlanTrip() {
               placeholder="Enter your current location..."
               variant="current"
               icon={<Navigation className="h-4 w-4" />}
+              mapboxToken={mapboxToken}
             />
 
             <LocationInput
@@ -152,6 +180,7 @@ export default function PlanTrip() {
               placeholder="Enter pickup location..."
               variant="pickup"
               icon={<Truck className="h-4 w-4" />}
+              mapboxToken={mapboxToken}
             />
 
             <LocationInput
@@ -161,6 +190,7 @@ export default function PlanTrip() {
               placeholder="Enter drop-off location..."
               variant="dropoff"
               icon={<Route className="h-4 w-4" />}
+              mapboxToken={mapboxToken}
             />
           </Card>
 

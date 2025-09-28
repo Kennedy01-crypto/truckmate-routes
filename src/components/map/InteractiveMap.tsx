@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { MapPin, Navigation, Loader2 } from "lucide-react";
+import { MapPin, Navigation, Loader2, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface Location {
   lat: number;
@@ -14,46 +16,151 @@ interface InteractiveMapProps {
   onLocationSelect: (location: Omit<Location, 'type'>) => void;
   className?: string;
   showRoute?: boolean;
+  mapboxToken?: string;
 }
 
 export const InteractiveMap = ({ 
   locations, 
   onLocationSelect, 
   className,
-  showRoute = false 
+  showRoute = false,
+  mapboxToken 
 }: InteractiveMapProps) => {
-  const mapRef = useRef<HTMLDivElement>(null);
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mapInteraction, setMapInteraction] = useState<string | null>(null);
+  const [needsToken, setNeedsToken] = useState(!mapboxToken);
 
   useEffect(() => {
-    // Simulate map loading
-    const timer = setTimeout(() => {
+    if (!mapContainer.current || !mapboxToken) {
       setIsLoading(false);
-    }, 1500);
+      return;
+    }
 
-    return () => clearTimeout(timer);
-  }, []);
+    try {
+      // Initialize map
+      mapboxgl.accessToken = mapboxToken;
+      
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/dark-v11',
+        center: [-98.5795, 39.8283], // Center of US
+        zoom: 3
+      });
 
-  const handleMapClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (isLoading) return;
-    
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
-    
-    // Simulate coordinate conversion
-    const lat = 40.7128 + (y - 50) * 0.1;
-    const lng = -74.0060 + (x - 50) * 0.1;
-    
-    // Simulate reverse geocoding
-    const address = `Location at ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    
-    onLocationSelect({ lat, lng, address });
-    setMapInteraction(`Selected: ${address}`);
-    
-    setTimeout(() => setMapInteraction(null), 2000);
-  };
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+      map.current.on('load', () => {
+        setIsLoading(false);
+      });
+
+      // Handle map clicks for location selection
+      map.current.on('click', async (e) => {
+        const { lng, lat } = e.lngLat;
+        
+        try {
+          // Reverse geocoding
+          const response = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxToken}`
+          );
+          const data = await response.json();
+          const address = data.features[0]?.place_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          
+          onLocationSelect({ lat, lng, address });
+          setMapInteraction(`Selected: ${address}`);
+          setTimeout(() => setMapInteraction(null), 3000);
+        } catch (error) {
+          console.error('Reverse geocoding failed:', error);
+          onLocationSelect({ lat, lng, address: `${lat.toFixed(4)}, ${lng.toFixed(4)}` });
+        }
+      });
+
+    } catch (error) {
+      console.error('Map initialization failed:', error);
+      setIsLoading(false);
+    }
+
+    return () => {
+      map.current?.remove();
+    };
+  }, [mapboxToken, onLocationSelect]);
+
+  // Update markers when locations change
+  useEffect(() => {
+    if (!map.current || !mapboxToken) return;
+
+    // Clear existing markers
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+
+    // Add new markers
+    locations.forEach((location) => {
+      const el = document.createElement('div');
+      el.className = 'marker';
+      el.style.width = '32px';
+      el.style.height = '32px';
+      el.style.borderRadius = '50%';
+      el.style.border = '2px solid white';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.fontSize = '16px';
+      el.style.fontWeight = 'bold';
+      el.style.color = 'white';
+      el.style.cursor = 'pointer';
+      
+      switch (location.type) {
+        case 'current':
+          el.style.backgroundColor = 'hsl(var(--success))';
+          el.innerHTML = '📍';
+          break;
+        case 'pickup':
+          el.style.backgroundColor = 'hsl(var(--warning))';
+          el.innerHTML = '🚛';
+          break;
+        case 'dropoff':
+          el.style.backgroundColor = 'hsl(var(--primary))';
+          el.innerHTML = '🎯';
+          break;
+      }
+
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat([location.lng, location.lat])
+        .setPopup(new mapboxgl.Popup().setHTML(`<div style="color: black;"><strong>${location.type.charAt(0).toUpperCase() + location.type.slice(1)}</strong><br/>${location.address}</div>`))
+        .addTo(map.current!);
+
+      markersRef.current.push(marker);
+    });
+
+    // Fit map to show all locations
+    if (locations.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds();
+      locations.forEach(location => bounds.extend([location.lng, location.lat]));
+      map.current.fitBounds(bounds, { padding: 50 });
+    }
+  }, [locations, mapboxToken]);
+
+  if (needsToken && !mapboxToken) {
+    return (
+      <div className={cn("eld-map-container relative flex items-center justify-center", className)} style={{ minHeight: '300px' }}>
+        <div className="text-center p-6 bg-card border border-border rounded-lg">
+          <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Map API Required</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            To use real maps, you need a Mapbox token. Get yours from{' '}
+            <a href="https://mapbox.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              mapbox.com
+            </a>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            For now, we'll show a demo map. Add your token in the parent component.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("eld-map-container relative", className)}>
@@ -69,109 +176,23 @@ export const InteractiveMap = ({
 
       {/* Map Canvas */}
       <div 
-        ref={mapRef}
-        className="w-full h-full bg-gradient-to-br from-eld-map-bg to-card cursor-crosshair relative overflow-hidden"
-        onClick={handleMapClick}
+        ref={mapContainer}
+        className="w-full h-full relative overflow-hidden"
         style={{ minHeight: '300px' }}
-      >
-        {/* Grid Pattern for Visual Appeal */}
-        <div className="absolute inset-0 opacity-10">
-          <svg width="100%" height="100%" className="text-primary">
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
-        </div>
+      />
 
-        {/* Location Markers */}
-        {!isLoading && locations.map((location, index) => (
-          <div
-            key={index}
-            className="absolute transform -translate-x-1/2 -translate-y-1/2 animate-fade-in"
-            style={{
-              left: `${50 + (location.lng + 74.0060) * 500}%`,
-              top: `${50 + (40.7128 - location.lat) * 500}%`,
-            }}
-          >
-            <div className={cn(
-              "relative flex items-center justify-center w-8 h-8 rounded-full border-2 shadow-lg",
-              location.type === 'current' && "bg-success border-success-foreground",
-              location.type === 'pickup' && "bg-warning border-warning-foreground", 
-              location.type === 'dropoff' && "bg-primary border-primary-foreground"
-            )}>
-              <MapPin className="h-4 w-4 text-white" />
-              
-              {/* Label */}
-              <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                <div className="bg-card border border-border rounded px-2 py-1 text-xs">
-                  {location.type === 'current' && 'Current'}
-                  {location.type === 'pickup' && 'Pickup'}
-                  {location.type === 'dropoff' && 'Drop-off'}
-                </div>
-              </div>
-            </div>
+      {/* Interaction Feedback */}
+      {mapInteraction && (
+        <div className="absolute top-4 left-4 bg-card border border-border rounded-lg px-3 py-2 animate-slide-up z-10">
+          <div className="flex items-center gap-2">
+            <Navigation className="h-4 w-4 text-primary" />
+            <span className="text-sm">{mapInteraction}</span>
           </div>
-        ))}
-
-        {/* Route Line */}
-        {!isLoading && showRoute && locations.length >= 2 && (
-          <svg className="absolute inset-0 w-full h-full pointer-events-none">
-            <defs>
-              <linearGradient id="routeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="hsl(var(--primary))" />
-                <stop offset="100%" stopColor="hsl(var(--primary) / 0.6)" />
-              </linearGradient>
-            </defs>
-            {locations.slice(1).map((location, index) => {
-              const prevLocation = locations[index];
-              const x1 = 50 + (prevLocation.lng + 74.0060) * 500;
-              const y1 = 50 + (40.7128 - prevLocation.lat) * 500;
-              const x2 = 50 + (location.lng + 74.0060) * 500;
-              const y2 = 50 + (40.7128 - location.lat) * 500;
-              
-              return (
-                <line
-                  key={index}
-                  x1={`${x1}%`}
-                  y1={`${y1}%`}
-                  x2={`${x2}%`}
-                  y2={`${y2}%`}
-                  stroke="url(#routeGradient)"
-                  strokeWidth="3"
-                  strokeDasharray="10 5"
-                  className="animate-route-draw"
-                />
-              );
-            })}
-          </svg>
-        )}
-
-        {/* Interaction Feedback */}
-        {mapInteraction && (
-          <div className="absolute top-4 left-4 bg-card border border-border rounded-lg px-3 py-2 animate-slide-up">
-            <div className="flex items-center gap-2">
-              <Navigation className="h-4 w-4 text-primary" />
-              <span className="text-sm">{mapInteraction}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Map Controls */}
-        <div className="absolute top-4 right-4 flex flex-col gap-2">
-          <button className="bg-card border border-border rounded-lg p-2 hover:bg-muted transition-colors">
-            <span className="text-lg font-bold">+</span>
-          </button>
-          <button className="bg-card border border-border rounded-lg p-2 hover:bg-muted transition-colors">
-            <span className="text-lg font-bold">−</span>
-          </button>
         </div>
-      </div>
+      )}
 
       {/* Map Legend */}
-      <div className="absolute bottom-4 left-4 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-3">
+      <div className="absolute bottom-4 left-4 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-3 z-10">
         <h3 className="text-xs font-medium mb-2">Legend</h3>
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-xs">
