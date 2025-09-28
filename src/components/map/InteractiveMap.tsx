@@ -1,193 +1,261 @@
-import { useEffect, useRef, useState } from "react";
-import { MapPin, Navigation, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  Map,
+  config,
+  Marker,
+  LngLatBounds,
+  ControlPosition,
+} from "@maptiler/sdk";
+import { GeocodingControl } from "@maptiler/geocoding-control/maptilersdk";
+import { geocoding } from "@maptiler/client";
+import "@maptiler/sdk/dist/maptiler-sdk.css";
+import "@maptiler/geocoding-control/style.css"; // Don't forget the control's CSS
 import { cn } from "@/lib/utils";
+
+// 🚨 SECURITY: Use an environment variable for the API key
+config.apiKey =
+  process.env.NEXT_PUBLIC_MAPTILER_API_KEY || "sZlUOIPXNT9DQqEKzkiW";
 
 interface Location {
   lat: number;
   lng: number;
   address: string;
-  type: 'current' | 'pickup' | 'dropoff';
+  type: "current" | "pickup" | "dropoff";
 }
 
 interface InteractiveMapProps {
   locations: Location[];
-  onLocationSelect: (location: Omit<Location, 'type'>) => void;
+  onLocationSelect: (location: Omit<Location, "type">) => void;
   className?: string;
   showRoute?: boolean;
 }
 
-export const InteractiveMap = ({ 
-  locations, 
-  onLocationSelect, 
+// Helper function for marker color logic
+const getMarkerColor = (type: Location["type"]): string => {
+  switch (type) {
+    case "current":
+      return "#28a745"; // Green
+    case "pickup":
+      return "#ffc107"; // Yellow/Orange
+    case "dropoff":
+      return "#007bff"; // Blue
+    default:
+      return "#000000";
+  }
+};
+
+export const InteractiveMap = ({
+  locations,
+  onLocationSelect,
   className,
-  showRoute = false 
+  showRoute = false,
 }: InteractiveMapProps) => {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [mapInteraction, setMapInteraction] = useState<string | null>(null);
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<Map | null>(null);
+  const markers = useRef<Marker[]>([]);
+  const geocodingControlRef = useRef<GeocodingControl | null>(null);
 
+  // Consolidated state for display coordinates
+  const [mapCenter, setMapCenter] = useState({
+    lng: -70.9,
+    lat: 42.35,
+    zoom: 9,
+  });
+
+  // Use useCallback to memoize the click handler (good practice for dependencies)
+  const handleMapClick = useCallback(
+    async (e: any) => {
+      const { lng, lat } = e.lngLat;
+      try {
+        // Use the client library for reverse geocoding
+        const results = await geocoding.reverse([lng, lat]);
+        if (results.features.length > 0) {
+          onLocationSelect({
+            lat,
+            lng,
+            address: results.features[0].place_name,
+          });
+        }
+      } catch (error) {
+        console.error("Error during reverse geocoding:", error);
+        // Optional: Add user feedback here (e.g., a toast notification)
+      }
+    },
+    [onLocationSelect]
+  );
+
+  // Effect for Map Initialization and Event Listeners
   useEffect(() => {
-    // Simulate map loading
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
+    if (map.current || !mapContainer.current) return;
 
-    return () => clearTimeout(timer);
-  }, []);
+    // 1. Initialize the Map
+    const initialCenter = [mapCenter.lng, mapCenter.lat] as [number, number];
+    map.current = new Map({
+      container: mapContainer.current,
+      style: "streets-v2",
+      center: initialCenter,
+      zoom: mapCenter.zoom,
+    });
 
-  const handleMapClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (isLoading) return;
-    
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
-    
-    // Simulate coordinate conversion
-    const lat = 40.7128 + (y - 50) * 0.1;
-    const lng = -74.0060 + (x - 50) * 0.1;
-    
-    // Simulate reverse geocoding
-    const address = `Location at ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    
-    onLocationSelect({ lat, lng, address });
-    setMapInteraction(`Selected: ${address}`);
-    
-    setTimeout(() => setMapInteraction(null), 2000);
-  };
+    const mapInstance = map.current;
+
+    // 2. Add Geocoding Control (Search Bar)
+    geocodingControlRef.current = new GeocodingControl({
+      country: "US", // Example: Restrict search to the US
+      placeholder: "Search for an address...",
+    });
+    mapInstance.addControl(
+      geocodingControlRef.current,
+      "top-left" as ControlPosition
+    );
+
+    // 3. Add Search Result Listener
+    geocodingControlRef.current.on("pick", (event) => {
+      const feature = event.feature;
+      // Ensure the geometry is a Point before accessing coordinates
+      if (feature.geometry.type === "Point") {
+        const [lng, lat] = feature.geometry.coordinates;
+        onLocationSelect({
+          lat,
+          lng,
+          address: feature.place_name,
+        });
+      }
+    });
+
+    // 4. Add Move Listener (for display coordinates)
+    const moveHandler = () => {
+      setMapCenter({
+        lng: parseFloat(mapInstance.getCenter().lng.toFixed(4)),
+        lat: parseFloat(mapInstance.getCenter().lat.toFixed(4)),
+        zoom: parseFloat(mapInstance.getZoom().toFixed(2)),
+      });
+    };
+    mapInstance.on("move", moveHandler);
+
+    // 5. Add Click Listener (for location selection)
+    mapInstance.on("click", handleMapClick);
+
+    // 6. Cleanup function
+    return () => {
+      if (mapInstance) {
+        mapInstance.off("move", moveHandler);
+        mapInstance.off("click", handleMapClick);
+
+        if (geocodingControlRef.current) {
+          mapInstance.removeControl(geocodingControlRef.current);
+        }
+
+        mapInstance.remove();
+        map.current = null;
+      }
+    };
+  }, [
+    mapCenter.lng,
+    mapCenter.lat,
+    mapCenter.zoom,
+    handleMapClick,
+    onLocationSelect,
+  ]);
+  // Note: We keep initial center/zoom in deps for potential external changes,
+  // but primarily rely on mapInstance.on('move') to update `mapCenter` state.
+
+  // Effect for Marker Management and Map Fitting
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance) return;
+
+    // Clear existing markers
+    markers.current.forEach((marker) => marker.remove());
+    markers.current = [];
+
+    // Add new markers
+    locations.forEach((location) => {
+      const color = getMarkerColor(location.type);
+      const marker = new Marker({ color })
+        .setLngLat([location.lng, location.lat])
+        .addTo(mapInstance);
+      markers.current.push(marker);
+    });
+
+    // Fit map to bounds if locations exist
+    if (locations.length > 0) {
+      const bounds = new LngLatBounds();
+      locations.forEach((location) => {
+        bounds.extend([location.lng, location.lat]);
+      });
+      mapInstance.fitBounds(bounds, {
+        padding: 100,
+        maxZoom: 15,
+        duration: 1000,
+      });
+    }
+  }, [locations]);
+
+  // Effect for Route Drawing (Straight Line Route)
+  // For a professional touch, consider using a MapTiler Directions API call here.
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance) return;
+
+    const sourceId = "route";
+    const layerId = "route-layer";
+
+    // Cleanup existing route layers/sources
+    if (mapInstance.getLayer(layerId)) {
+      mapInstance.removeLayer(layerId);
+    }
+    if (mapInstance.getSource(sourceId)) {
+      mapInstance.removeSource(sourceId);
+    }
+
+    if (showRoute && locations.length > 1) {
+      const coordinates = locations.map((loc) => [loc.lng, loc.lat]);
+
+      // Add the GeoJSON source for the straight line route
+      mapInstance.addSource(sourceId, {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "LineString",
+            coordinates: coordinates, // Replace with fetched route geometry for real roads
+          },
+        },
+      });
+
+      // Add the route line layer
+      mapInstance.addLayer({
+        id: layerId,
+        type: "line",
+        source: sourceId,
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": "#007bff",
+          "line-width": 5,
+          "line-opacity": 0.8,
+        },
+      });
+    }
+  }, [locations, showRoute]);
 
   return (
-    <div className={cn("eld-map-container relative", className)}>
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="absolute inset-0 bg-eld-map-bg/90 backdrop-blur-sm flex items-center justify-center z-10">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Loading map...</p>
-          </div>
-        </div>
-      )}
-
-      {/* Map Canvas */}
-      <div 
-        ref={mapRef}
-        className="w-full h-full bg-gradient-to-br from-eld-map-bg to-card cursor-crosshair relative overflow-hidden"
-        onClick={handleMapClick}
-        style={{ minHeight: '300px' }}
-      >
-        {/* Grid Pattern for Visual Appeal */}
-        <div className="absolute inset-0 opacity-10">
-          <svg width="100%" height="100%" className="text-primary">
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
-        </div>
-
-        {/* Location Markers */}
-        {!isLoading && locations.map((location, index) => (
-          <div
-            key={index}
-            className="absolute transform -translate-x-1/2 -translate-y-1/2 animate-fade-in"
-            style={{
-              left: `${50 + (location.lng + 74.0060) * 500}%`,
-              top: `${50 + (40.7128 - location.lat) * 500}%`,
-            }}
-          >
-            <div className={cn(
-              "relative flex items-center justify-center w-8 h-8 rounded-full border-2 shadow-lg",
-              location.type === 'current' && "bg-success border-success-foreground",
-              location.type === 'pickup' && "bg-warning border-warning-foreground", 
-              location.type === 'dropoff' && "bg-primary border-primary-foreground"
-            )}>
-              <MapPin className="h-4 w-4 text-white" />
-              
-              {/* Label */}
-              <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                <div className="bg-card border border-border rounded px-2 py-1 text-xs">
-                  {location.type === 'current' && 'Current'}
-                  {location.type === 'pickup' && 'Pickup'}
-                  {location.type === 'dropoff' && 'Drop-off'}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {/* Route Line */}
-        {!isLoading && showRoute && locations.length >= 2 && (
-          <svg className="absolute inset-0 w-full h-full pointer-events-none">
-            <defs>
-              <linearGradient id="routeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="hsl(var(--primary))" />
-                <stop offset="100%" stopColor="hsl(var(--primary) / 0.6)" />
-              </linearGradient>
-            </defs>
-            {locations.slice(1).map((location, index) => {
-              const prevLocation = locations[index];
-              const x1 = 50 + (prevLocation.lng + 74.0060) * 500;
-              const y1 = 50 + (40.7128 - prevLocation.lat) * 500;
-              const x2 = 50 + (location.lng + 74.0060) * 500;
-              const y2 = 50 + (40.7128 - location.lat) * 500;
-              
-              return (
-                <line
-                  key={index}
-                  x1={`${x1}%`}
-                  y1={`${y1}%`}
-                  x2={`${x2}%`}
-                  y2={`${y2}%`}
-                  stroke="url(#routeGradient)"
-                  strokeWidth="3"
-                  strokeDasharray="10 5"
-                  className="animate-route-draw"
-                />
-              );
-            })}
-          </svg>
-        )}
-
-        {/* Interaction Feedback */}
-        {mapInteraction && (
-          <div className="absolute top-4 left-4 bg-card border border-border rounded-lg px-3 py-2 animate-slide-up">
-            <div className="flex items-center gap-2">
-              <Navigation className="h-4 w-4 text-primary" />
-              <span className="text-sm">{mapInteraction}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Map Controls */}
-        <div className="absolute top-4 right-4 flex flex-col gap-2">
-          <button className="bg-card border border-border rounded-lg p-2 hover:bg-muted transition-colors">
-            <span className="text-lg font-bold">+</span>
-          </button>
-          <button className="bg-card border border-border rounded-lg p-2 hover:bg-muted transition-colors">
-            <span className="text-lg font-bold">−</span>
-          </button>
-        </div>
+    <div
+      className={cn("relative w-full h-full", className)}
+      style={{ minHeight: "400px" }}
+    >
+      <div className="absolute top-0 right-0 m-3 p-2 bg-gray-800 text-white text-xs rounded z-10">
+        Longitude: {mapCenter.lng} | Latitude: {mapCenter.lat} | Zoom:{" "}
+        {mapCenter.zoom}
       </div>
-
-      {/* Map Legend */}
-      <div className="absolute bottom-4 left-4 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-3">
-        <h3 className="text-xs font-medium mb-2">Legend</h3>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded-full bg-success"></div>
-            <span>Current Location</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded-full bg-warning"></div>
-            <span>Pickup Point</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded-full bg-primary"></div>
-            <span>Drop-off Point</span>
-          </div>
-        </div>
-      </div>
+      <div
+        ref={mapContainer}
+        className="absolute top-0 right-0 bottom-0 left-0"
+      />
     </div>
   );
 };
