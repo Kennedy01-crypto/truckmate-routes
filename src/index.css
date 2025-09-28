@@ -2,95 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* ELD Truck Driver App Design System - Professional Blue & Black Theme */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
+    /* Core Colors - Professional Truck Driver ELD Theme */
+    --background: 220 13% 7%;          /* Deep charcoal background */
+    --foreground: 210 40% 95%;         /* Clean white text */
+    
+    --card: 220 13% 10%;               /* Slightly lighter charcoal for cards */
+    --card-foreground: 210 40% 95%;    /* Clean white text on cards */
+    
+    --popover: 220 13% 10%;
+    --popover-foreground: 210 40% 95%;
+    
+    /* Professional Blue - Primary Brand Color */
+    --primary: 214 100% 55%;           /* Vibrant professional blue */
+    --primary-foreground: 220 13% 7%;  /* Dark text on blue */
+    
+    --secondary: 220 13% 15%;          /* Dark secondary surface */
+    --secondary-foreground: 210 40% 95%;
+    
+    --muted: 220 13% 12%;              /* Muted background */
+    --muted-foreground: 215 15% 65%;   /* Muted text */
+    
+    --accent: 214 100% 55%;            /* Blue accent (same as primary) */
+    --accent-foreground: 220 13% 7%;
+    
+    --destructive: 0 84% 60%;          /* Error/warning red */
     --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    --warning: 45 93% 58%;             /* Warning yellow */
+    --warning-foreground: 220 13% 7%;
+    
+    --success: 142 76% 36%;            /* Success green */
+    --success-foreground: 210 40% 98%;
+    
+    --border: 220 13% 18%;             /* Subtle borders */
+    --input: 220 13% 15%;              /* Input backgrounds */
+    --ring: 214 100% 55%;              /* Focus ring (blue) */
+    
+    --radius: 0.75rem;                 /* Slightly rounded for professional look */
+    
+    /* Map & Navigation Colors */
+    --map-background: 220 13% 5%;
+    --route-active: 214 100% 55%;      /* Blue route lines */
+    --route-planned: 214 50% 45%;      /* Dimmer blue for planned routes */
+    --location-marker: 214 100% 55%;   /* Blue location pins */
+    
+    /* ELD Log Colors */
+    --log-driving: 214 100% 55%;       /* Blue for driving time */
+    --log-onduty: 45 93% 58%;          /* Yellow for on-duty */
+    --log-sleeper: 142 76% 36%;        /* Green for sleeper berth */
+    --log-offduty: 220 13% 40%;        /* Gray for off-duty */
+    
+    /* Professional gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(214 100% 55%), hsl(214 100% 45%));
+    --gradient-surface: linear-gradient(135deg, hsl(220 13% 10%), hsl(220 13% 8%));
+    --gradient-accent: linear-gradient(90deg, hsl(214 100% 55% / 0.1), hsl(214 100% 55% / 0.05));
+    
+    /* Navigation & Layout */
+    --nav-background: 220 13% 8%;
+    --nav-border: 220 13% 18%;
+    --nav-active: 214 100% 55%;
+    
+    /* Animation & Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Shadows for depth */
+    --shadow-elevation: 0 4px 20px -4px hsl(220 13% 3% / 0.8);
+    --shadow-glow: 0 0 20px hsl(214 100% 55% / 0.3);
+    --shadow-card: 0 2px 10px -2px hsl(220 13% 3% / 0.6);
   }
 }
 
@@ -100,6 +83,61 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+  
+  /* Custom scrollbar for professional look */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary));
+    border-radius: 3px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.8);
+  }
+}
+
+/* Professional component classes */
+@layer components {
+  .eld-card {
+    @apply bg-card border border-border rounded-xl shadow-[var(--shadow-card)] backdrop-blur-sm;
+  }
+  
+  .eld-button-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 shadow-[var(--shadow-glow)] transition-[var(--transition-fast)];
+  }
+  
+  .eld-button-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border transition-[var(--transition-fast)];
+  }
+  
+  .eld-input {
+    @apply bg-input text-foreground border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-[var(--transition-fast)];
+  }
+  
+  .eld-nav-item {
+    @apply flex items-center gap-2 px-4 py-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-[var(--transition-fast)] rounded-lg;
+  }
+  
+  .eld-nav-item-active {
+    @apply bg-primary text-primary-foreground shadow-[var(--shadow-glow)];
+  }
+  
+  .eld-gradient-text {
+    @apply bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent;
+  }
+  
+  .eld-map-container {
+    @apply bg-[var(--map-background)] rounded-xl overflow-hidden shadow-[var(--shadow-elevation)] border border-border;
   }
 }
